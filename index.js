@@ -14,158 +14,162 @@ let cookieName = 'language';
 let cookieOption = { path: '/', maxAge: 157680000 };
 
 function subscribe(cb) {
-  const newId = count;
-  subscribes[newId] = cb;
-  count += 1;
-  return newId;
+	const newId = count;
+	subscribes[newId] = cb;
+	count += 1;
+	return newId;
 }
 
 function unsubscribe(id) {
-  delete subscribes[id];
+	delete subscribes[id];
 }
 
 function triggerSubscriptions() {
-  Object.keys(subscribes).forEach((id) => {
-    new Promise((resolve) => {
-      subscribes[id]();
-      resolve();
-    }).then();
-  });
+	Object.keys(subscribes).forEach((id) => {
+		new Promise((resolve) => {
+			subscribes[id]();
+			resolve();
+		}).then();
+	});
 }
 
 function getLanguages() {
-  return Object.keys(translations);
+	return Object.keys(translations);
 }
 
 function getDefaultLanguage() {
-  return defaultLanguage;
+	return defaultLanguage;
 }
 
 function getLanguage() {
-  return language;
+	return language;
 }
 
 function setDefaultLanguage(lang) {
-  defaultLanguage = lang;
-  language = lang;
+	defaultLanguage = lang;
+	language = lang;
 }
 
 function setLanguage(lang) {
-  if (getLanguages().indexOf(lang) === -1) {
-    return;
-  }
+	if (getLanguages().indexOf(lang) === -1) {
+		return;
+	}
 
-  language = lang;
-  triggerSubscriptions();
+	language = lang;
+	triggerSubscriptions();
 
-  if (cookies && process.browser) {
-    cookies.set(cookieName, language, cookieOption);
-  }
+	if (cookies && process.browser) {
+		cookies.set(cookieName, language, cookieOption);
+	}
 }
 
 function setLanguageCookie(name, option, reqCookie) {
-  cookies = new Cookies(reqCookie);
-  cookieName = name || cookieName;
-  cookieOption = Object.assign({}, cookieOption, option);
+	cookies = new Cookies(reqCookie);
+	cookieName = name || cookieName;
+	cookieOption = Object.assign({}, cookieOption, option);
 
-  const lang = cookies.get(name);
+	const lang = cookies.get(name);
 
-  if (lang) {
-    setLanguage(lang);
-  }
+	if (lang) {
+		setLanguage(lang);
+	}
 }
 
 function setTranslations(userTranslations) {
-  translations = userTranslations;
-  triggerSubscriptions();
+	translations = userTranslations;
+	triggerSubscriptions();
 }
 
 function setDefaultTranslations(userTranslations) {
-  if (getLanguages().length !== 0) {
-    setTranslations(userTranslations);
-    return;
-  }
-  translations = userTranslations;
+	if (getLanguages().length !== 0) {
+		setTranslations(userTranslations);
+		return;
+	}
+	translations = userTranslations;
 }
 
 function getTranslation(lang) {
-  return translations[lang];
+	return translations[lang];
 }
 
 function t(path, params, lang) {
-  const selectLang = lang || language;
+	const selectLang = lang || language;
 
-  function fallback() {
-    if (selectLang !== defaultLanguage) {
-      return t(path, params, defaultLanguage);
-    }
-    return path;
-  }
+	function fallback() {
+		if (selectLang !== defaultLanguage) {
+			return t(path, params, defaultLanguage);
+		}
+		return path;
+	}
 
-  let translationObj = getTranslation(selectLang);
+	let translationObj = getTranslation(selectLang);
 
-  if (!translationObj) {
-    return fallback();
-  }
+	if (!translationObj) {
+		return fallback();
+	}
 
-  const translationKeys = path.split('.');
-  let translation = '';
+	const translationKeys = path.split('.');
+	let translation = '';
 
-  translationKeys.forEach((key) => {
-    const temp = translationObj[key];
-    if (typeof translationObj[key] === 'object') {
-      translationObj = translationObj[key];
-    } else if (typeof temp === 'string') {
-      translation = temp;
-    }
-  });
+	translationKeys.forEach((key) => {
+		const temp = translationObj[key];
+		if (typeof translationObj[key] === 'object') {
+			if (Array.isArray(translationObj[key])) {
+				translation = temp;
+			} else {
+				translationObj = translationObj[key];
+			}
+		} else if (typeof temp === 'string') {
+			translation = temp;
+		}
+	});
 
-  if (!translation) {
-    return fallback();
-  }
+	if (!translation) {
+		return fallback();
+	}
 
-  if (params) {
-    Object.keys(params).forEach((key) => {
-      const replace = `{${key}}`;
-      translation = translation.replace(replace, params[key]);
-    });
-  }
+	if (params) {
+		Object.keys(params).forEach((key) => {
+			const replace = `{${key}}`;
+			translation = translation.replace(replace, params[key]);
+		});
+	}
 
-  return translation;
+	return translation;
 }
 
 function translate(Component) {
-  class TranslatedComponet extends React.Component {
-    componentDidMount() {
-      this.id = subscribe(() => this.forceUpdate());
-    }
+	class TranslatedComponet extends React.Component {
+		componentDidMount() {
+			this.id = subscribe(() => this.forceUpdate());
+		}
 
-    componentWillUnmount() {
-      unsubscribe(this.id);
-    }
+		componentWillUnmount() {
+			unsubscribe(this.id);
+		}
 
-    render() {
-      return React.createElement(
-        Component,
-        objectAssign({}, this.props, { t: (key, args, lang) => t(key, args, lang) }),
-      );
-    }
-  }
+		render() {
+			return React.createElement(
+				Component,
+				objectAssign({}, this.props, { t: (key, args, lang) => t(key, args, lang) })
+			);
+		}
+	}
 
-  return hoistStatics(TranslatedComponet, Component);
+	return hoistStatics(TranslatedComponet, Component);
 }
 
 module.exports = {
-  getLanguages,
-  getDefaultLanguage,
-  getLanguage,
-  setDefaultLanguage,
-  setLanguage,
-  setLanguageCookie,
-  setDefaultTranslations,
-  setTranslations,
-  translate,
-  subscribe,
-  unsubscribe,
-  t,
+	getLanguages,
+	getDefaultLanguage,
+	getLanguage,
+	setDefaultLanguage,
+	setLanguage,
+	setLanguageCookie,
+	setDefaultTranslations,
+	setTranslations,
+	translate,
+	subscribe,
+	unsubscribe,
+	t
 };
